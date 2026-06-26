@@ -1,11 +1,12 @@
 import { Link, useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X, ArrowLeft } from "lucide-react";
+import { Menu, X, ArrowLeft, User } from "lucide-react";
 import { Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Glucosaur from "@/components/Glucosaur";
 import { LayoutDashboard, Droplets, UtensilsCrossed, Pill, BarChart3, Settings, ChefHat, Search, Lightbulb, ShoppingBag, Bell } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { useAuth } from "@/lib/AuthContext";
 
 const ALL_NAV_ITEMS = [
   { path: "/", icon: LayoutDashboard, labelKey: "nav_dashboard", tabKey: null },
@@ -23,6 +24,7 @@ const ALL_NAV_ITEMS = [
 ];
 
 export default function Layout({ lang, settings }) {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -157,6 +159,17 @@ export default function Layout({ lang, settings }) {
                 <X className="w-5 h-5 pointer-events-none" />
               </button>
             </div>
+            {user && (
+              <div className="px-4 py-3 border-b border-border/50 bg-muted/20 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <User className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-foreground truncate">{user.name || "Glucosaur User"}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </div>
+            )}
             <nav className="py-3 overflow-y-auto">
               {sidebarNavItems.map((item) => {
                 const isActive = location.pathname === item.path;

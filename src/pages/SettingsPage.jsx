@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
-import { LogOut, Trash2, AlertTriangle, Shield, Droplets, UtensilsCrossed, Pill, BarChart3, ChefHat, Search, Lightbulb, ShoppingBag, Bell, Trophy } from "lucide-react";
+import { LogOut, Trash2, AlertTriangle, Shield, Droplets, UtensilsCrossed, Pill, BarChart3, ChefHat, Search, Lightbulb, ShoppingBag, Bell, Trophy, User, Mail } from "lucide-react";
 
 const TAB_CONFIG = [
   { key: "tab_glucose", labelKey: "nav_glucose", icon: Droplets },
@@ -27,7 +27,7 @@ const TAB_CONFIG = [
 ];
 
 export default function SettingsPage({ settings, updateSettings }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [form, setForm] = useState({ ...settings });
   const [saving, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -139,6 +139,22 @@ export default function SettingsPage({ settings, updateSettings }) {
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-foreground">{t("settings_title", lang)}</h1>
+
+      {/* User Account Info */}
+      {user && (
+        <div className="bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <User className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-foreground truncate">{user.name || "Glucosaur User"}</h2>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+              <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="truncate font-medium">{user.email}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* General */}
       <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-5">

@@ -32,14 +32,38 @@ export const AuthProvider = ({ children }) => {
       };
       setAppPublicSettings(publicSettings);
       
-      const cachedAuth = localStorage.getItem("glucosaur_authenticated") === "true";
-      if (cachedAuth) {
-        await checkUserAuth();
-      } else {
-        setIsLoadingAuth(false);
-        setIsAuthenticated(false);
-        setAuthChecked(true);
+      let currentUser = null;
+      if (db.auth && typeof db.auth.me === 'function') {
+        try {
+          currentUser = await db.auth.me();
+        } catch (e) {
+          console.error("Failed to check silent login session:", e);
+        }
       }
+
+      const cachedAuth = localStorage.getItem("glucosaur_authenticated") === "true";
+
+      if (currentUser) {
+        setUser(currentUser);
+        setIsAuthenticated(true);
+        localStorage.setItem("glucosaur_authenticated", "true");
+      } else if (cachedAuth) {
+        const mockEmail = localStorage.getItem("glucosaur_mock_email") || "glucosaur@example.com";
+        const mockName = localStorage.getItem("glucosaur_mock_name") || "Glucosaur Patient";
+        setUser({
+          id: "glucosaur_mock_user_1",
+          email: mockEmail,
+          name: mockName
+        });
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem("glucosaur_authenticated");
+      }
+
+      setIsLoadingAuth(false);
+      setAuthChecked(true);
       setIsLoadingPublicSettings(false);
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -75,6 +99,8 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setAuthChecked(true);
     localStorage.removeItem("glucosaur_authenticated");
+    localStorage.removeItem("glucosaur_mock_email");
+    localStorage.removeItem("glucosaur_mock_name");
     if (db.auth && typeof db.auth.logout === 'function') {
       try {
         db.auth.logout();
@@ -92,14 +118,45 @@ export const AuthProvider = ({ children }) => {
 
   const navigateToLogin = async () => {
     setIsLoadingAuth(true);
-    localStorage.setItem("glucosaur_authenticated", "true");
-    const mockUser = {
-      id: "glucosaur_mock_user_1",
-      email: "glucosaur@example.com",
-      name: "Glucosaur Patient"
-    };
-    setUser(mockUser);
+    if (db.auth && typeof db.auth.loginWithProvider === 'function') {
+      try {
+        db.auth.loginWithProvider('google', window.location.href);
+        return;
+      } catch (e) {
+        console.error("loginWithProvider failed:", e);
+      }
+    }
+
+    let loggedInUser = null;
+    if (db.auth && typeof db.auth.login === 'function') {
+      try {
+        await db.auth.login();
+        loggedInUser = await db.auth.me();
+      } catch (e) {
+        console.error("Real login failed:", e);
+      }
+    } else if (db.auth && typeof db.auth.signInWithGoogle === 'function') {
+      try {
+        await db.auth.signInWithGoogle();
+        loggedInUser = await db.auth.me();
+      } catch (e) {
+        console.error("Real signInWithGoogle failed:", e);
+      }
+    }
+
+    if (!loggedInUser) {
+      const mockEmail = localStorage.getItem("glucosaur_mock_email") || "glucosaur@example.com";
+      const mockName = localStorage.getItem("glucosaur_mock_name") || "Glucosaur Patient";
+      loggedInUser = {
+        id: "glucosaur_mock_user_1",
+        email: mockEmail,
+        name: mockName
+      };
+    }
+
+    setUser(loggedInUser);
     setIsAuthenticated(true);
+    localStorage.setItem("glucosaur_authenticated", "true");
     setIsLoadingAuth(false);
     setAuthChecked(true);
   };
