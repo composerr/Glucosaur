@@ -2,13 +2,14 @@ const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me
 
 import { useState, useEffect } from "react";
 
-import { Pill, Plus, X, Trash2, Check, Clock } from "lucide-react";
+import { Pill, Plus, X, Trash2, Check, Clock, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { t, getFrequencyLabel, getTimeOfDayLabel } from "@/lib/i18n";
 import EmptyState from "@/components/EmptyState";
 import MascotHint from "@/components/MascotHint";
 import MobileSelect from "@/components/MobileSelect";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format, startOfDay } from "date-fns";
 
@@ -61,6 +62,54 @@ export default function Medications({ settings }) {
   });
   const [saving, setSaving] = useState(false);
   const lang = settings.language;
+
+  // Editing States
+  const [editingMed, setEditingMed] = useState(null);
+  const [editMedForm, setEditMedForm] = useState({
+    name: "",
+    dosage: "",
+    frequency: "once_daily",
+    time_of_day: "morning"
+  });
+
+  // Edit Handlers
+  function handleStartEditMed(med) {
+    setEditingMed(med);
+    setEditMedForm({
+      name: med.name,
+      dosage: med.dosage,
+      frequency: med.frequency,
+      time_of_day: med.time_of_day
+    });
+  }
+
+  async function handleSaveEditedMed() {
+    if (!editMedForm.name.trim() || !editMedForm.dosage.trim()) return;
+    const updatedMed = {
+      ...editingMed,
+      name: editMedForm.name.trim(),
+      dosage: editMedForm.dosage.trim(),
+      frequency: editMedForm.frequency,
+      time_of_day: editMedForm.time_of_day
+    };
+
+    setMedications(prev => prev.map(m => m.id === editingMed.id ? updatedMed : m));
+    setEditingMed(null);
+
+    try {
+      await db.entities.Medication.update(editingMed.id, {
+        name: updatedMed.name,
+        dosage: updatedMed.dosage,
+        frequency: updatedMed.frequency,
+        time_of_day: updatedMed.time_of_day,
+      });
+      loadData();
+      toast.success(lang === "uk" ? "Ліки оновлено" : "Medication updated");
+    } catch {
+      toast.error(lang === "uk" ? "Не вдалося оновити запис" : "Failed to update medication");
+      loadData();
+    }
+  }
 
   useEffect(() => { loadData(); }, []);
 
@@ -320,9 +369,18 @@ export default function Medications({ settings }) {
                     <span className={`text-sm font-semibold ${taken ? "text-muted-foreground line-through" : "text-foreground"}`}>{med.name}</span>
                     <p className="text-xs text-muted-foreground">{med.dosage} · {getFrequencyLabel(med.frequency, lang)} · {getTimeOfDayLabel(med.time_of_day, lang)}</p>
                   </div>
-                  <button onClick={() => handleDelete(med.id)} className="p-2 text-muted-foreground hover:text-destructive transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleStartEditMed(med)}
+                      className="p-2 text-muted-foreground hover:text-primary transition-all"
+                      title={lang === "uk" ? "Редагувати ліки" : "Edit medication"}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(med.id)} className="p-2 text-muted-foreground hover:text-destructive transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -333,6 +391,65 @@ export default function Medications({ settings }) {
       {medications.length === 0 && !showForm && (
         <EmptyState icon={Pill} message={t("meds_empty", lang)} />
       )}
+
+      {/* Medication Edit Dialog */}
+      <Dialog open={!!editingMed} onOpenChange={(open) => !open && setEditingMed(null)}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{lang === "uk" ? "Редагувати ліки" : "Edit Medication"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meds_name", lang)}</label>
+              <Input
+                value={editMedForm.name}
+                onChange={(e) => setEditMedForm({ ...editMedForm, name: e.target.value })}
+                className="rounded-xl"
+                placeholder={lang === "uk" ? "Введіть назву ліків" : "Enter medication name"}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meds_dosage", lang)}</label>
+              <Input
+                value={editMedForm.dosage}
+                onChange={(e) => setEditMedForm({ ...editMedForm, dosage: e.target.value })}
+                className="rounded-xl"
+                placeholder="500mg"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meds_frequency", lang)}</label>
+                <MobileSelect
+                  value={editMedForm.frequency}
+                  onValueChange={(v) => setEditMedForm({ ...editMedForm, frequency: v })}
+                  options={freqOptions}
+                  placeholder={t("meds_frequency", lang)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meds_time", lang)}</label>
+                <MobileSelect
+                  value={editMedForm.time_of_day}
+                  onValueChange={(v) => setEditMedForm({ ...editMedForm, time_of_day: v })}
+                  options={timeOptions}
+                  placeholder={t("meds_time", lang)}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:flex-row mt-2">
+            <Button variant="outline" className="rounded-xl flex-1" onClick={() => setEditingMed(null)}>
+              {t("general_cancel", lang)}
+            </Button>
+            <Button className="rounded-xl flex-1" onClick={handleSaveEditedMed}>
+              {lang === "uk" ? "Зберегти" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

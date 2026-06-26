@@ -73,15 +73,58 @@ export default function SettingsPage({ settings, updateSettings }) {
   async function handleDeleteAccount() {
     setDeleting(true);
     try {
-      await db.entities.UserSettings.deleteMany({});
-      await db.entities.GlucoseReading.deleteMany({});
-      await db.entities.MealLog.deleteMany({});
-      await db.entities.Medication.deleteMany({});
-      await db.entities.MedicationLog.deleteMany({});
-      await db.entities.Reminder.deleteMany({});
+      // 1. UserSettings
+      try {
+        const usList = await db.entities.UserSettings.list();
+        for (const item of usList) {
+          if (item?.id) await db.entities.UserSettings.delete(item.id);
+        }
+      } catch (e) { console.error("Error deleting UserSettings:", e); }
+
+      // 2. GlucoseReading
+      try {
+        const grList = await db.entities.GlucoseReading.list();
+        for (const item of grList) {
+          if (item?.id) await db.entities.GlucoseReading.delete(item.id);
+        }
+      } catch (e) { console.error("Error deleting GlucoseReading:", e); }
+
+      // 3. MealLog
+      try {
+        const mlList = await db.entities.MealLog.list();
+        for (const item of mlList) {
+          if (item?.id) await db.entities.MealLog.delete(item.id);
+        }
+      } catch (e) { console.error("Error deleting MealLog:", e); }
+
+      // 4. Medication
+      try {
+        const mList = await db.entities.Medication.list();
+        for (const item of mList) {
+          if (item?.id) await db.entities.Medication.delete(item.id);
+        }
+      } catch (e) { console.error("Error deleting Medication:", e); }
+
+      // 5. MedicationLog
+      try {
+        const mlList = await db.entities.MedicationLog.list();
+        for (const item of mlList) {
+          if (item?.id) await db.entities.MedicationLog.delete(item.id);
+        }
+      } catch (e) { console.error("Error deleting MedicationLog:", e); }
+
+      // 6. Reminder
+      try {
+        const rList = await db.entities.Reminder.list();
+        for (const item of rList) {
+          if (item?.id) await db.entities.Reminder.delete(item.id);
+        }
+      } catch (e) { console.error("Error deleting Reminder:", e); }
+
       toast.success(t("settings_delete_success", lang));
       logout(true);
-    } catch {
+    } catch (e) {
+      console.error(e);
       toast.error(t("settings_delete_error", lang));
     }
     setDeleting(false);

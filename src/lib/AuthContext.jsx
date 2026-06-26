@@ -73,9 +73,21 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    setAuthChecked(false);
+    setAuthChecked(true);
     localStorage.removeItem("glucosaur_authenticated");
-    db.auth.logout();
+    if (db.auth && typeof db.auth.logout === 'function') {
+      try {
+        db.auth.logout();
+      } catch (e) {
+        console.error("db.auth.logout failed:", e);
+      }
+    } else if (db.auth && typeof db.auth.signOut === 'function') {
+      try {
+        db.auth.signOut();
+      } catch (e) {
+        console.error("db.auth.signOut failed:", e);
+      }
+    }
   };
 
   const navigateToLogin = async () => {

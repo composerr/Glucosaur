@@ -2,7 +2,7 @@ const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me
 
 import { useState, useEffect } from "react";
 
-import { UtensilsCrossed, Plus, X, Trash2, Camera, Loader2, Sparkles, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
+import { UtensilsCrossed, Plus, X, Trash2, Camera, Loader2, Sparkles, ChevronLeft, ChevronRight, Calculator, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,7 @@ import MascotHint from "@/components/MascotHint";
 import MealTemplates from "@/components/MealTemplates";
 import PullToRefresh from "@/components/PullToRefresh";
 import MobileSelect from "@/components/MobileSelect";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format, addDays, subDays, startOfDay } from "date-fns";
 
@@ -41,6 +42,10 @@ export default function Meals({ settings }) {
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
+
+  // Editing States
+  const [editingMeal, setEditingMeal] = useState(null);
+  const [editMealForm, setEditMealForm] = useState({ meal_type: "breakfast", description: "", carbs_grams: "", calories: "" });
   
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcIngredients, setCalcIngredients] = useState([
@@ -49,6 +54,45 @@ export default function Meals({ settings }) {
 
   const lang = settings.language;
   const dateLocale = getDateLocale(lang);
+
+  // Edit Handlers
+  function handleStartEditMeal(meal) {
+    setEditingMeal(meal);
+    setEditMealForm({
+      meal_type: meal.meal_type,
+      description: meal.description || "",
+      carbs_grams: meal.carbs_grams !== undefined ? String(meal.carbs_grams) : "",
+      calories: meal.calories !== undefined ? String(meal.calories) : ""
+    });
+  }
+
+  async function handleSaveEditedMeal() {
+    const updatedMeal = {
+      ...editingMeal,
+      meal_type: editMealForm.meal_type,
+      description: editMealForm.description || undefined,
+      carbs_grams: editMealForm.carbs_grams ? parseFloat(editMealForm.carbs_grams) : undefined,
+      calories: editMealForm.calories ? parseFloat(editMealForm.calories) : undefined,
+    };
+
+    setAllMeals(prev => prev.map(m => m.id === editingMeal.id ? updatedMeal : m));
+    setMeals(prev => prev.map(m => m.id === editingMeal.id ? updatedMeal : m));
+    setEditingMeal(null);
+
+    try {
+      await db.entities.MealLog.update(editingMeal.id, {
+        meal_type: updatedMeal.meal_type,
+        description: updatedMeal.description,
+        carbs_grams: updatedMeal.carbs_grams,
+        calories: updatedMeal.calories,
+      });
+      loadMeals();
+      toast.success(lang === "uk" ? "Запис прийому їжі оновлено" : "Meal log updated");
+    } catch {
+      toast.error(lang === "uk" ? "Не вдалося оновити запис" : "Failed to update meal log");
+      loadMeals();
+    }
+  }
 
   function handleAddIngredient() {
     setCalcIngredients([...calcIngredients, {
@@ -428,14 +472,82 @@ export default function Meals({ settings }) {
                   {m.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{m.description}</p>}
                   <span className="text-xs text-muted-foreground">{format(new Date(m.date), "HH:mm")}</span>
                 </div>
-                <button onClick={() => handleDelete(m.id)} className="p-2 text-muted-foreground hover:text-destructive transition-all">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleStartEditMeal(m)}
+                    className="p-2 text-muted-foreground hover:text-primary transition-all"
+                    title={lang === "uk" ? "Редагувати прийом їжі" : "Edit meal log"}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDelete(m.id)} className="p-2 text-muted-foreground hover:text-destructive transition-all">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Meal Edit Dialog */}
+      <Dialog open={!!editingMeal} onOpenChange={(open) => !open && setEditingMeal(null)}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{lang === "uk" ? "Редагувати прийом їжі" : "Edit Meal Log"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meals_type", lang)}</label>
+              <MobileSelect
+                value={editMealForm.meal_type}
+                onValueChange={(v) => setEditMealForm({ ...editMealForm, meal_type: v })}
+                options={mealOptions}
+                placeholder={t("meals_type", lang)}
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meals_description", lang)}</label>
+              <Textarea
+                value={editMealForm.description}
+                onChange={(e) => setEditMealForm({ ...editMealForm, description: e.target.value })}
+                placeholder={lang === "uk" ? "Що ви їли..." : "What did you eat..."}
+                className="rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meals_carbs", lang)}</label>
+                <Input
+                  type="number"
+                  value={editMealForm.carbs_grams}
+                  onChange={(e) => setEditMealForm({ ...editMealForm, carbs_grams: e.target.value })}
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("meals_calories", lang)}</label>
+                <Input
+                  type="number"
+                  value={editMealForm.calories}
+                  onChange={(e) => setEditMealForm({ ...editMealForm, calories: e.target.value })}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:flex-row mt-2">
+            <Button variant="outline" className="rounded-xl flex-1" onClick={() => setEditingMeal(null)}>
+              {t("general_cancel", lang)}
+            </Button>
+            <Button className="rounded-xl flex-1" onClick={handleSaveEditedMeal}>
+              {lang === "uk" ? "Зберегти" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PullToRefresh>
   );
 }

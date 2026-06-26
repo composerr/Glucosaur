@@ -49,7 +49,24 @@ export default function Reminders({ settings }) {
     setExportingCalendarId(reminder.id);
     try {
       const [hour, minute] = reminder.time.split(":");
+      
+      // Calculate first occurrence starting from today
+      const today = new Date();
+      const todayDayOfWeek = today.getDay(); // 0 (Sun) - 6 (Sat)
+      
+      let daysToAdd = 0;
+      if (reminder.days && reminder.days.length > 0) {
+        const sortedDays = [...reminder.days].sort((a, b) => a - b);
+        const nextDay = sortedDays.find(d => d >= todayDayOfWeek);
+        if (nextDay !== undefined) {
+          daysToAdd = nextDay - todayDayOfWeek;
+        } else {
+          daysToAdd = (sortedDays[0] + 7) - todayDayOfWeek;
+        }
+      }
+      
       const startDate = new Date();
+      startDate.setDate(today.getDate() + daysToAdd);
       startDate.setHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
       const endDate = new Date(startDate.getTime() + 15 * 60 * 1000); // 15 mins
 
@@ -60,15 +77,20 @@ export default function Reminders({ settings }) {
 
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
+      const pad = (n) => String(n).padStart(2, '0');
+      const getLocalISOString = (date) => {
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      };
+
       const event = {
         summary: `🦕 ${reminder.title}`,
         description: lang === "uk" ? `Нагадування від Glucosaur (${reminder.type})` : `Reminder from Glucosaur (${reminder.type})`,
         start: {
-          dateTime: startDate.toISOString(),
+          dateTime: getLocalISOString(startDate),
           timeZone: timeZone
         },
         end: {
-          dateTime: endDate.toISOString(),
+          dateTime: getLocalISOString(endDate),
           timeZone: timeZone
         },
         recurrence: [
@@ -92,7 +114,8 @@ export default function Reminders({ settings }) {
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        const errText = await res.text();
+        throw new Error(errText);
       }
 
       toast.success(
@@ -102,7 +125,7 @@ export default function Reminders({ settings }) {
       );
     } catch (err) {
       console.error(err);
-      toast.error(lang === "uk" ? "Не вдалося експортувати в Календар" : "Failed to export to Calendar");
+      toast.error(lang === "uk" ? `Не вдалося експортувати: ${err.message}` : `Failed to export: ${err.message}`);
     } finally {
       setExportingCalendarId(null);
     }

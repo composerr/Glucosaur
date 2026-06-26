@@ -2,7 +2,7 @@ const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me
 
 import { useState, useEffect } from "react";
 
-import { Droplets, Plus, X, Trash2, Calendar, List, Search, Bookmark, Sparkles } from "lucide-react";
+import { Droplets, Plus, X, Trash2, Calendar, List, Search, Bookmark, Sparkles, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ import GlucoseStatusBadge from "@/components/GlucoseStatusBadge";
 import GlucoseCalendar from "@/components/GlucoseCalendar";
 import PullToRefresh from "@/components/PullToRefresh";
 import MobileSelect from "@/components/MobileSelect";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -39,8 +40,77 @@ export default function Glucose({ settings }) {
   const [customTemplates, setCustomTemplates] = useState([]);
   const [templateName, setTemplateName] = useState("");
   const [showSaveTpl, setShowSaveTpl] = useState(false);
+
+  // Editing States
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [editTemplateForm, setEditTemplateForm] = useState({ name: "", value: "", measurement_time: "before_breakfast" });
+  const [editingReading, setEditingReading] = useState(null);
+  const [editReadingForm, setEditReadingForm] = useState({ value: "", measurement_time: "before_breakfast", notes: "" });
+
   const lang = settings.language;
   const dateLocale = getDateLocale(lang);
+
+  // Template Edit Handlers
+  function handleStartEditTemplate(tpl, e) {
+    e.stopPropagation();
+    setEditingTemplate(tpl);
+    setEditTemplateForm({
+      name: tpl.name,
+      value: tpl.value.toString(),
+      measurement_time: tpl.measurement_time || "before_breakfast"
+    });
+  }
+
+  function handleSaveEditedTemplate() {
+    if (!editTemplateForm.name.trim() || !editTemplateForm.value) return;
+    const updated = customTemplates.map(t => t.id === editingTemplate.id ? {
+      ...t,
+      name: editTemplateForm.name.trim(),
+      value: editTemplateForm.value,
+      measurement_time: editTemplateForm.measurement_time
+    } : t);
+    setCustomTemplates(updated);
+    saveGlucoseTemplates(updated);
+    setEditingTemplate(null);
+    toast.success(lang === "uk" ? "Шаблон оновлено" : "Template updated");
+  }
+
+  // Reading Edit Handlers
+  function handleStartEditReading(reading) {
+    setEditingReading(reading);
+    setEditReadingForm({
+      value: reading.value.toString(),
+      measurement_time: reading.measurement_time,
+      notes: reading.notes || ""
+    });
+  }
+
+  async function handleSaveEditedReading() {
+    if (!editReadingForm.value) return;
+    const updatedValue = parseFloat(editReadingForm.value);
+    const updatedReading = {
+      ...editingReading,
+      value: updatedValue,
+      measurement_time: editReadingForm.measurement_time,
+      notes: editReadingForm.notes || undefined
+    };
+
+    setReadings(prev => prev.map(r => r.id === editingReading.id ? updatedReading : r));
+    setEditingReading(null);
+
+    try {
+      await db.entities.GlucoseReading.update(editingReading.id, {
+        value: updatedReading.value,
+        measurement_time: updatedReading.measurement_time,
+        notes: updatedReading.notes,
+      });
+      loadReadings();
+      toast.success(lang === "uk" ? "Запис оновлено" : "Reading updated");
+    } catch {
+      toast.error(lang === "uk" ? "Не вдалося оновити запис" : "Failed to update reading");
+      loadReadings();
+    }
+  }
 
   useEffect(() => { loadReadings(); }, []);
 
@@ -244,12 +314,21 @@ export default function Glucose({ settings }) {
                   title={lang === "uk" ? "Натисніть для швидкого додавання" : "Click to quick add"}
                 >
                   <span>{tpl.name} ({tpl.value})</span>
-                  <button
-                    onClick={(e) => handleDeleteTemplate(tpl.id, e)}
-                    className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={(e) => handleStartEditTemplate(tpl, e)}
+                      className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title={lang === "uk" ? "Редагувати шаблон" : "Edit template"}
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteTemplate(tpl.id, e)}
+                      className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -380,18 +459,134 @@ export default function Glucose({ settings }) {
                     </div>
                     {r.notes && <p className="text-xs text-muted-foreground mt-1 truncate">{r.notes}</p>}
                   </div>
-                  <button
-                    onClick={() => handleDelete(r.id)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleStartEditReading(r)}
+                      className="p-2 text-muted-foreground hover:text-primary transition-all"
+                      title={lang === "uk" ? "Редагувати запис" : "Edit reading"}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(r.id)}
+                      className="p-2 text-muted-foreground hover:text-destructive transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )
         ) : null}
       </div>
+
+      {/* Template Edit Dialog */}
+      <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{lang === "uk" ? "Редагувати шаблон" : "Edit Template"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                {lang === "uk" ? "Назва шаблону" : "Template Name"}
+              </label>
+              <Input
+                value={editTemplateForm.name}
+                onChange={(e) => setEditTemplateForm({ ...editTemplateForm, name: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                {t("glucose_value", lang)} ({settings.glucose_unit})
+              </label>
+              <Input
+                type="number"
+                step="0.1"
+                value={editTemplateForm.value}
+                onChange={(e) => setEditTemplateForm({ ...editTemplateForm, value: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                {t("glucose_when", lang)}
+              </label>
+              <MobileSelect
+                value={editTemplateForm.measurement_time}
+                onValueChange={(v) => setEditTemplateForm({ ...editTemplateForm, measurement_time: v })}
+                options={measurementOptions}
+                placeholder={t("glucose_when", lang)}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:flex-row mt-2">
+            <Button variant="outline" className="rounded-xl flex-1" onClick={() => setEditingTemplate(null)}>
+              {t("general_cancel", lang)}
+            </Button>
+            <Button className="rounded-xl flex-1" onClick={handleSaveEditedTemplate}>
+              {lang === "uk" ? "Зберегти" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reading Edit Dialog */}
+      <Dialog open={!!editingReading} onOpenChange={(open) => !open && setEditingReading(null)}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{lang === "uk" ? "Редагувати запис глюкози" : "Edit Glucose Reading"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                {t("glucose_value", lang)} ({settings.glucose_unit})
+              </label>
+              <Input
+                type="number"
+                step="0.1"
+                value={editReadingForm.value}
+                onChange={(e) => setEditReadingForm({ ...editReadingForm, value: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                {t("glucose_when", lang)}
+              </label>
+              <MobileSelect
+                value={editReadingForm.measurement_time}
+                onValueChange={(v) => setEditReadingForm({ ...editReadingForm, measurement_time: v })}
+                options={measurementOptions}
+                placeholder={t("glucose_when", lang)}
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                {t("glucose_notes", lang)}
+              </label>
+              <Textarea
+                value={editReadingForm.notes}
+                onChange={(e) => setEditReadingForm({ ...editReadingForm, notes: e.target.value })}
+                className="rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:flex-row mt-2">
+            <Button variant="outline" className="rounded-xl flex-1" onClick={() => setEditingReading(null)}>
+              {t("general_cancel", lang)}
+            </Button>
+            <Button className="rounded-xl flex-1" onClick={handleSaveEditedReading}>
+              {lang === "uk" ? "Зберегти" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PullToRefresh>
   );
 }
