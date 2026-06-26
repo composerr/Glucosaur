@@ -1,0 +1,45 @@
+{
+  "name": "GlucoseReading",
+  "type": "object",
+  "properties": {
+    "value": {
+      "type": "number",
+      "description": "Blood glucose value in mmol/L"
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "mmol/L",
+        "mg/dL"
+      ],
+      "default": "mmol/L"
+    },
+    "measurement_time": {
+      "type": "string",
+      "enum": [
+        "before_breakfast",
+        "after_breakfast",
+        "before_lunch",
+        "after_lunch",
+        "before_dinner",
+        "after_dinner",
+        "bedtime",
+        "fasting",
+        "other"
+      ],
+      "description": "When the measurement was taken"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "value",
+    "date",
+    "measurement_time"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Medication",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "dosage": {
+      "type": "string"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "once_daily",
+        "twice_daily",
+        "three_times_daily",
+        "as_needed"
+      ]
+    },
+    "time_of_day": {
+      "type": "string",
+      "enum": [
+        "morning",
+        "afternoon",
+        "evening",
+        "bedtime"
+      ]
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "dosage",
+    "frequency"
+  ]
+}

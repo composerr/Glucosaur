@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Prevent Uncaught TypeError: Cannot set property fetch of #<Window> in iframes/Web3 wallets -->
+    <script>
+      (function() {
+        try {
+          var originalFetch = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() { return originalFetch; },
+            set: function(val) { originalFetch = val; },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn("Could not redefine window.fetch setter:", e);
+        }
+      })();
+    </script>
+    <link rel="icon" href="/src/assets/images/glucosaur_blood_drop_mascot_1782482847167.jpg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-adsense-account" content="ca-pub-3449666742824097" />
+    <title>Glucosaur</title>
+    <!-- Database and SDK Simulator for offline sandbox execution -->
+    <script>
+      (function() {
+        function getInitialSeedData(entityName) {
+          const now = new Date();
+          const formatISO = (daysAgo, hour) => {
+            const d = new Date(now);
+            d.setDate(d.getDate() - daysAgo);
+            d.setHours(hour, 0, 0, 0);
+            return d.toISOString();
+          };
+
+          switch (entityName) {
+            case 'UserSettings':
+              return [{
+                id: 'settings_1',
+                language: 'uk',
+                theme: 'light',
+                glucose_unit: 'mmol/L',
+                target_glucose_min: 4.0,
+                target_glucose_max: 7.8,
+                tab_glucose: true,
+                tab_meals: true,
+                tab_medications: true,
+                tab_reports: true,
+                tab_recipes: true,
+                tab_glycemic: true,
+                tab_tips: true,
+                tab_stores: true,
+                tab_reminders: true,
+                tab_achievements: true,
+                show_mascot: true,
+                nav_style: 'bottom'
+              }];
+            case 'GlucoseReading':
+              return [
+                { id: 'g_1', value: 5.6, unit: 'mmol/L', measurement_time: 'before_breakfast', date: formatISO(0, 8), notes: 'Чудове самопочуття | Feeling great' },
+                { id: 'g_2', value: 7.2, unit: 'mmol/L', measurement_time: 'after_lunch', date: formatISO(0, 14), notes: 'Прогулявся після їжі | Took a walk after eating' },
+                { id: 'g_3', value: 6.1, unit: 'mmol/L', measurement_time: 'before_dinner', date: formatISO(0, 19), notes: '' },
+                { id: 'g_4', value: 5.8, unit: 'mmol/L', measurement_time: 'bedtime', date: formatISO(0, 22), notes: 'Стабільний рівень | Stable level' },
+                { id: 'g_5', value: 8.4, unit: 'mmol/L', measurement_time: 'after_breakfast', date: formatISO(1, 9), notes: 'З’їв трохи більше каші | Ate a bit too much porridge' },
+                { id: 'g_6', value: 4.9, unit: 'mmol/L', measurement_time: 'before_lunch', date: formatISO(1, 13), notes: '' },
+                { id: 'g_7', value: 6.5, unit: 'mmol/L', measurement_time: 'before_dinner', date: formatISO(1, 18), notes: 'Все під контролем | Everything under control' }
+              ];
+            case 'MealLog':
+              return [
+                { id: 'm_1', meal_type: 'breakfast', description: 'Вівсянка з горіхами та ягодами | Oatmeal with nuts and berries', carbs_grams: 45, calories: 350, date: formatISO(0, 8), notes: 'Низький ГІ | Low GI' },
+                { id: 'm_2', meal_type: 'lunch', description: 'Запечена куряча грудка з броколі | Baked chicken breast with broccoli', carbs_grams: 15, calories: 420, date: formatISO(0, 13), notes: 'Багато білка | High protein' },
+                { id: 'm_3', meal_type: 'dinner', description: 'Салат з лососем та авокадо | Salmon and avocado salad', carbs_grams: 10, calories: 380, date: formatISO(0, 19), notes: 'Корисні жири | Healthy fats' },
+                { id: 'm_4', meal_type: 'breakfast', description: 'Яєчня з трьох яєць та шпинат | Scrambled eggs (3 eggs) with spinach', carbs_grams: 5, calories: 280, date: formatISO(1, 8), notes: 'Без вуглеводів | Low carb' }
+              ];
+            case 'Medication':
+              return [
+                { id: 'med_1', name: 'Метформін (Metformin)', dosage: '500 мг', frequency: 'twice_daily', time_of_day: 'morning', active: true },
+                { id: 'med_2', name: 'Метформін (Metformin)', dosage: '500 мг', frequency: 'twice_daily', time_of_day: 'evening', active: true }
+              ];
+            case 'MedicationLog':
+              return [
+                { id: 'ml_1', medication_id: 'med_1', medication_name: 'Метформін (Metformin)', taken: true, date: formatISO(0, 9) },
+                { id: 'ml_2', medication_id: 'med_2', medication_name: 'Метформін (Metformin)', taken: true, date: formatISO(1, 20) }
+              ];
+            case 'Reminder':
+              return [
+                { id: 'r_1', title: 'Виміряти цукор 🩸 | Check glucose 🩸', type: 'glucose', time: '08:00', days: [0, 1, 2, 3, 4, 5, 6], active: true },
+                { id: 'r_2', title: 'Прийняти Метформін 💊 | Take Metformin 💊', type: 'medication', time: '09:00', days: [0, 1, 2, 3, 4, 5, 6], active: true },
+                { id: 'r_3', title: 'Виміряти цукор перед сном 🩸 | Bedtime glucose check 🩸', type: 'glucose', time: '22:00', days: [0, 1, 2, 3, 4, 5, 6], active: true }
+              ];
+            default:
+              return [];
+          }
+        }
+
+        globalThis.__B44_DB__ = {
+          auth: {
+            isAuthenticated: async () => {
+              return localStorage.getItem("glucosaur_authenticated") === "true";
+            },
+            me: async () => {
+              const isAuth = localStorage.getItem("glucosaur_authenticated") === "true";
+              if (!isAuth) return null;
+              return {
+                id: "glucosaur_mock_user_1",
+                email: "glucosaur@example.com",
+                name: "Glucosaur Patient"
+              };
+            },
+            logout: async () => {
+              localStorage.removeItem("glucosaur_authenticated");
+            },
+            redirectToLogin: () => {
+              localStorage.setItem("glucosaur_authenticated", "true");
+              window.location.reload();
+            }
+          },
+          entities: new Proxy({}, {
+            get: (target, entityName) => {
+              const key = `b44_entity_${entityName}`;
+              return {
+                list: async (orderField, limit) => {
+                  let items = [];
+                  try {
+                    items = JSON.parse(localStorage.getItem(key)) || [];
+                  } catch (e) {
+                    items = [];
+                  }
+                  if (items.length === 0) {
+                    items = getInitialSeedData(entityName);
+                    localStorage.setItem(key, JSON.stringify(items));
+                  }
+                  if (orderField) {
+                    const desc = orderField.startsWith("-");
+                    const field = desc ? orderField.substring(1) : orderField;
+                    items.sort((a, b) => {
+                      const valA = a[field];
+                      const valB = b[field];
+                      if (valA < valB) return desc ? 1 : -1;
+                      if (valA > valB) return desc ? -1 : 1;
+                      return 0;
+                    });
+                  }
+                  if (limit) {
+                    items = items.slice(0, limit);
+                  }
+                  return items;
+                },
+                filter: async (criteria) => {
+                  let items = [];
+                  try {
+                    items = JSON.parse(localStorage.getItem(key)) || [];
+                  } catch (e) {
+                    items = [];
+                  }
+                  if (items.length === 0) {
+                    items = getInitialSeedData(entityName);
+                    localStorage.setItem(key, JSON.stringify(items));
+                  }
+                  if (criteria) {
+                    items = items.filter(item => {
+                      for (const k in criteria) {
+                        if (item[k] !== criteria[k]) return false;
+                      }
+                      return true;
+                    });
+                  }
+                  return items;
+                },
+                get: async (id) => {
+                  let items = [];
+                  try {
+                    items = JSON.parse(localStorage.getItem(key)) || [];
+                  } catch (e) {}
+                  return items.find(item => item.id === id) || null;
+                },
+                create: async (data) => {
+                  let items = [];
+                  try {
+                    items = JSON.parse(localStorage.getItem(key)) || [];
+                  } catch (e) {}
+                  const newItem = {
+                    id: 'id_' + Math.random().toString(36).substr(2, 9),
+                    created_date: new Date().toISOString(),
+                    date: new Date().toISOString(),
+                    ...data
+                  };
+                  items.push(newItem);
+                  localStorage.setItem(key, JSON.stringify(items));
+                  return newItem;
+                },
+                update: async (id, data) => {
+                  let items = [];
+                  try {
+                    items = JSON.parse(localStorage.getItem(key)) || [];
+                  } catch (e) {}
+                  let updatedItem = null;
+                  items = items.map(item => {
+                    if (item.id === id) {
+                      updatedItem = { ...item, ...data };
+                      return updatedItem;
+                    }
+                    return item;
+                  });
+                  localStorage.setItem(key, JSON.stringify(items));
+                  return updatedItem;
+                },
+                delete: async (id) => {
+                  let items = [];
+                  try {
+                    items = JSON.parse(localStorage.getItem(key)) || [];
+                  } catch (e) {}
+                  items = items.filter(item => item.id !== id);
+                  localStorage.setItem(key, JSON.stringify(items));
+                  return { success: true };
+                },
+                deleteMany: async (criteria) => {
+                  const key = `b44_entity_${entityName}`;
+                  if (!criteria || Object.keys(criteria).length === 0) {
+                    localStorage.setItem(key, JSON.stringify([]));
+                  } else {
+                    let items = [];
+                    try {
+                      items = JSON.parse(localStorage.getItem(key)) || [];
+                    } catch (e) {}
+                    items = items.filter(item => {
+                      for (const k in criteria) {
+                        if (item[k] === criteria[k]) return false;
+                      }
+                      return true;
+                    });
+                    localStorage.setItem(key, JSON.stringify(items));
+                  }
+                  return { success: true };
+                }
+              };
+            }
+          }),
+          integrations: {
+            Core: {
+              UploadFile: async (file) => {
+                return { file_url: URL.createObjectURL(file) };
+              }
+            }
+          }
+        };
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

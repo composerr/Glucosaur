@@ -1,0 +1,38 @@
+{
+  "name": "MealLog",
+  "type": "object",
+  "properties": {
+    "meal_type": {
+      "type": "string",
+      "enum": [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "carbs_grams": {
+      "type": "number"
+    },
+    "calories": {
+      "type": "number"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "meal_type",
+    "date"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "name": "Reminder",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "glucose",
+        "medication",
+        "custom"
+      ],
+      "default": "glucose"
+    },
+    "time": {
+      "type": "string",
+      "description": "HH:MM format"
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "0=Sun,1=Mon,...,6=Sat"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "title",
+    "time",
+    "days"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Glucosaur",
+  "description": "A blood glucose levels and lifestyle tracker featuring the friendly Glucosaur mascot, meals logging, medications log, achievements, and reminders.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

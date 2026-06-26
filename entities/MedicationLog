@@ -1,0 +1,25 @@
+{
+  "name": "MedicationLog",
+  "type": "object",
+  "properties": {
+    "medication_id": {
+      "type": "string"
+    },
+    "medication_name": {
+      "type": "string"
+    },
+    "taken": {
+      "type": "boolean"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "medication_id",
+    "medication_name",
+    "taken",
+    "date"
+  ]
+}

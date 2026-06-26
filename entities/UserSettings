@@ -1,0 +1,99 @@
+{
+  "name": "UserSettings",
+  "type": "object",
+  "properties": {
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "uk",
+        "de",
+        "fr",
+        "es"
+      ],
+      "default": "en"
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark"
+      ],
+      "default": "light"
+    },
+    "glucose_unit": {
+      "type": "string",
+      "enum": [
+        "mmol/L",
+        "mg/dL"
+      ],
+      "default": "mmol/L"
+    },
+    "target_glucose_min": {
+      "type": "number",
+      "default": 4.0
+    },
+    "target_glucose_max": {
+      "type": "number",
+      "default": 7.8
+    },
+    "tab_glucose": {
+      "type": "boolean",
+      "default": true
+    },
+    "tab_meals": {
+      "type": "boolean",
+      "default": true
+    },
+    "tab_medications": {
+      "type": "boolean",
+      "default": true
+    },
+    "tab_reports": {
+      "type": "boolean",
+      "default": true
+    },
+    "tab_recipes": {
+      "type": "boolean",
+      "default": false
+    },
+    "tab_glycemic": {
+      "type": "boolean",
+      "default": false
+    },
+    "tab_tips": {
+      "type": "boolean",
+      "default": false
+    },
+    "tab_stores": {
+      "type": "boolean",
+      "default": true
+    },
+    "tab_reminders": {
+      "type": "boolean",
+      "default": true
+    },
+    "tab_achievements": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_mascot": {
+      "type": "boolean",
+      "default": true
+    },
+    "nav_style": {
+      "type": "string",
+      "enum": [
+        "bottom",
+        "sidebar",
+        "both"
+      ],
+      "default": "bottom"
+    }
+  },
+  "required": [
+    "language",
+    "theme",
+    "glucose_unit"
+  ]
+}
