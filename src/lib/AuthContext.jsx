@@ -237,6 +237,50 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
 
+  const isInsideIframe = () => {
+    if (typeof window === "undefined") return false;
+    return window !== window.parent;
+  };
+
+  const loginViaPopup = (url, redirectUrl, expectedOrigin) => {
+    const width = 500;
+    const height = 600;
+    const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
+    const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
+    const popup = window.open(url, "base44_auth", `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    if (!popup) {
+      window.location.href = url;
+      return;
+    }
+    
+    const cleanup = () => {
+      window.removeEventListener("message", onMessage);
+      clearInterval(pollTimer);
+      if (!popup.closed) popup.close();
+    };
+    
+    const onMessage = (event) => {
+      if (event.origin !== expectedOrigin) return;
+      if (event.source !== popup) return;
+      if (!event.data?.access_token) return;
+      
+      cleanup();
+      const callbackUrl = new URL(redirectUrl);
+      const { access_token, is_new_user } = event.data;
+      callbackUrl.searchParams.set("access_token", access_token);
+      if (is_new_user != null) {
+        callbackUrl.searchParams.set("is_new_user", String(is_new_user));
+      }
+      window.location.href = callbackUrl.toString();
+    };
+    
+    const pollTimer = setInterval(() => {
+      if (popup.closed) cleanup();
+    }, 500);
+    
+    window.addEventListener("message", onMessage);
+  };
+
   const navigateToLogin = async () => {
     try {
       setIsLoadingAuth(true);
@@ -249,7 +293,12 @@ export const AuthProvider = ({ children }) => {
       // Force the standard Google Account Picker by appending the 'prompt=select_account' query parameter
       const loginUrl = `${appBaseUrl}/api/apps/auth/login?app_id=${appId}&from_url=${encodeURIComponent(redirectUrl)}&prompt=select_account`;
       
-      window.location.href = loginUrl;
+      if (isInsideIframe()) {
+        const popupLoginUrl = `${loginUrl}&popup_origin=${encodeURIComponent(window.location.origin)}`;
+        loginViaPopup(popupLoginUrl, redirectUrl, window.location.origin);
+      } else {
+        window.location.href = loginUrl;
+      }
     } catch (e) {
       console.error("navigateToLogin failed:", e);
       setAuthError(e.message || "Failed to navigate to Google login");
