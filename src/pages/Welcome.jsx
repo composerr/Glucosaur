@@ -85,13 +85,25 @@ export default function Welcome() {
       saved = JSON.parse(localStorage.getItem("glucosaur_google_accounts") || "[]");
     } catch (e) {}
     
-    // Pre-seed with multiple Google accounts if empty
+    // Filter out any fake/mock pre-seeded accounts from saved list to clean up existing state
+    const forbiddenEmails = ["user.health@gmail.com", "glucosaur.tester@gmail.com", "patient@gmail.com", "guest@gmail.com"];
+    saved = saved.filter(acc => {
+      if (!acc || !acc.email) return false;
+      const emailLower = acc.email.toLowerCase().trim();
+      const nameLower = (acc.name || "").toLowerCase().trim();
+      
+      // Filter out matches based on forbidden emails or typical mock account keywords
+      if (forbiddenEmails.includes(emailLower)) return false;
+      if (nameLower.includes("patient") || nameLower.includes("guest") || nameLower.includes("tester") || nameLower.includes("health profile")) return false;
+      return true;
+    });
+
     if (saved.length === 0) {
       saved = [
-        { email: "sba30048@gmail.com", name: "sba30048" },
-        { email: "user.health@gmail.com", name: "Health Profile" },
-        { email: "glucosaur.tester@gmail.com", name: "Glucosaur Tester" }
+        { email: "sba30048@gmail.com", name: "sba30048" }
       ];
+      localStorage.setItem("glucosaur_google_accounts", JSON.stringify(saved));
+    } else {
       localStorage.setItem("glucosaur_google_accounts", JSON.stringify(saved));
     }
     return saved;
