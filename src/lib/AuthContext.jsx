@@ -4,6 +4,32 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { appParams } from '@/lib/app-params';
 
 // Dynamic patch for the global mock DB so it aligns with standard Gmail account picker
+const getRealNameForEmail = (email, rawName) => {
+  if (!email) return "Google User";
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const accountsRaw = localStorage.getItem("glucosaur_google_accounts");
+      if (accountsRaw) {
+        const accounts = JSON.parse(accountsRaw);
+        const match = accounts.find(acc => acc.email.toLowerCase().trim() === normalizedEmail);
+        if (match && match.name && match.name !== "Сергій" && match.name !== "Google User") {
+          return match.name;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (rawName && rawName !== "Сергій" && rawName !== "Google User") {
+    return rawName;
+  }
+
+  // Fallback to the username part of the email
+  const parts = normalizedEmail.split("@");
+  return parts[0] || "Google User";
+};
+
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
     if (localStorage.getItem("glucosaur_active_user_name") === "Сергій") {
@@ -14,9 +40,15 @@ if (typeof window !== 'undefined' && window.localStorage) {
       let accounts = JSON.parse(accountsRaw);
       let changed = false;
       accounts = accounts.map(acc => {
-        if (acc.email.toLowerCase() === "sba30048@gmail.com" && (acc.name === "Сергій" || acc.name === "Google User")) {
+        if (acc.email.toLowerCase().trim() === "sba30048@gmail.com") {
+          if (acc.name === "Сергій" || acc.name === "Google User") {
+            changed = true;
+            return { ...acc, name: "sba30048" };
+          }
+        } else if (acc.name === "Сергій") {
           changed = true;
-          return { ...acc, name: "sba30048" };
+          const fallback = acc.email.split("@")[0];
+          return { ...acc, name: fallback };
         }
         return acc;
       });
@@ -34,8 +66,8 @@ if (globalThis.__B44_DB__ && globalThis.__B44_DB__.auth) {
     const isAuth = localStorage.getItem("glucosaur_authenticated") === "true";
     if (!isAuth) return null;
     const email = localStorage.getItem("glucosaur_active_user_email") || "sba30048@gmail.com";
-    const rawName = localStorage.getItem("glucosaur_active_user_name") || "Google User";
-    const name = email.toLowerCase() === "sba30048@gmail.com" && rawName === "Сергій" ? "sba30048" : rawName;
+    const rawName = localStorage.getItem("glucosaur_active_user_name") || "sba30048";
+    const name = getRealNameForEmail(email, rawName);
     return {
       id: "glucosaur_mock_user_1",
       email: email,
