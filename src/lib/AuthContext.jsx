@@ -1,8 +1,54 @@
 const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-
 import { appParams } from '@/lib/app-params';
+
+// Dynamic patch for the global mock DB so it aligns with standard Gmail account picker
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    if (localStorage.getItem("glucosaur_active_user_name") === "Сергій") {
+      localStorage.setItem("glucosaur_active_user_name", "sba30048");
+    }
+    const accountsRaw = localStorage.getItem("glucosaur_google_accounts");
+    if (accountsRaw) {
+      let accounts = JSON.parse(accountsRaw);
+      let changed = false;
+      accounts = accounts.map(acc => {
+        if (acc.email.toLowerCase() === "sba30048@gmail.com" && (acc.name === "Сергій" || acc.name === "Google User")) {
+          changed = true;
+          return { ...acc, name: "sba30048" };
+        }
+        return acc;
+      });
+      if (changed) {
+        localStorage.setItem("glucosaur_google_accounts", JSON.stringify(accounts));
+      }
+    }
+  } catch (e) {
+    console.warn("Storage migration failed:", e);
+  }
+}
+
+if (globalThis.__B44_DB__ && globalThis.__B44_DB__.auth) {
+  globalThis.__B44_DB__.auth.me = async () => {
+    const isAuth = localStorage.getItem("glucosaur_authenticated") === "true";
+    if (!isAuth) return null;
+    const email = localStorage.getItem("glucosaur_active_user_email") || "sba30048@gmail.com";
+    const rawName = localStorage.getItem("glucosaur_active_user_name") || "Google User";
+    const name = email.toLowerCase() === "sba30048@gmail.com" && rawName === "Сергій" ? "sba30048" : rawName;
+    return {
+      id: "glucosaur_mock_user_1",
+      email: email,
+      name: name
+    };
+  };
+
+  globalThis.__B44_DB__.auth.logout = async () => {
+    localStorage.removeItem("glucosaur_authenticated");
+    localStorage.removeItem("glucosaur_active_user_email");
+    localStorage.removeItem("glucosaur_active_user_name");
+  };
+}
 
 const AuthContext = createContext();
 
@@ -13,7 +59,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  const [appPublicSettings, setAppPublicSettings] = useState(null);
 
   useEffect(() => {
     checkAppState();
@@ -41,19 +87,34 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
+      const activeEmail = localStorage.getItem("glucosaur_active_user_email");
+      const activeName = localStorage.getItem("glucosaur_active_user_name");
       const cachedAuth = localStorage.getItem("glucosaur_authenticated") === "true";
 
       if (currentUser) {
-        setUser(currentUser);
-        setIsAuthenticated(true);
-        localStorage.setItem("glucosaur_authenticated", "true");
-      } else if (cachedAuth) {
-        const mockEmail = localStorage.getItem("glucosaur_mock_email") || "glucosaur@example.com";
-        const mockName = localStorage.getItem("glucosaur_mock_name") || "Glucosaur Patient";
+        const email = currentUser.email || "";
+        if (email.toLowerCase().endsWith("@gmail.com")) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+          localStorage.setItem("glucosaur_authenticated", "true");
+        } else if (activeEmail && activeEmail.toLowerCase().endsWith("@gmail.com") && cachedAuth) {
+          setUser({
+            id: "glucosaur_mock_user_1",
+            email: activeEmail,
+            name: activeName || "Google User"
+          });
+          setIsAuthenticated(true);
+          localStorage.setItem("glucosaur_authenticated", "true");
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem("glucosaur_authenticated");
+        }
+      } else if (cachedAuth && activeEmail && activeEmail.toLowerCase().endsWith("@gmail.com")) {
         setUser({
           id: "glucosaur_mock_user_1",
-          email: mockEmail,
-          name: mockName
+          email: activeEmail,
+          name: activeName || "Google User"
         });
         setIsAuthenticated(true);
       } else {
@@ -75,11 +136,39 @@ export const AuthProvider = ({ children }) => {
   const checkUserAuth = async () => {
     try {
       setIsLoadingAuth(true);
+      setAuthError(null);
       const currentUser = await db.auth.me();
+      
+      const activeEmail = localStorage.getItem("glucosaur_active_user_email");
+      const activeName = localStorage.getItem("glucosaur_active_user_name");
+      const cachedAuth = localStorage.getItem("glucosaur_authenticated") === "true";
+
       if (currentUser) {
-        setUser(currentUser);
+        const email = currentUser.email || "";
+        if (email.toLowerCase().endsWith("@gmail.com")) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+          localStorage.setItem("glucosaur_authenticated", "true");
+        } else if (activeEmail && activeEmail.toLowerCase().endsWith("@gmail.com") && cachedAuth) {
+          setUser({
+            id: "glucosaur_mock_user_1",
+            email: activeEmail,
+            name: activeName || "Google User"
+          });
+          setIsAuthenticated(true);
+          localStorage.setItem("glucosaur_authenticated", "true");
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem("glucosaur_authenticated");
+        }
+      } else if (cachedAuth && activeEmail && activeEmail.toLowerCase().endsWith("@gmail.com")) {
+        setUser({
+          id: "glucosaur_mock_user_1",
+          email: activeEmail,
+          name: activeName || "Google User"
+        });
         setIsAuthenticated(true);
-        localStorage.setItem("glucosaur_authenticated", "true");
       } else {
         setIsAuthenticated(false);
         localStorage.removeItem("glucosaur_authenticated");
@@ -99,66 +188,73 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setAuthChecked(true);
     localStorage.removeItem("glucosaur_authenticated");
+    localStorage.removeItem("glucosaur_active_user_email");
+    localStorage.removeItem("glucosaur_active_user_name");
     localStorage.removeItem("glucosaur_mock_email");
     localStorage.removeItem("glucosaur_mock_name");
+    
     if (db.auth && typeof db.auth.logout === 'function') {
       try {
         db.auth.logout();
       } catch (e) {
         console.error("db.auth.logout failed:", e);
       }
-    } else if (db.auth && typeof db.auth.signOut === 'function') {
-      try {
-        db.auth.signOut();
-      } catch (e) {
-        console.error("db.auth.signOut failed:", e);
-      }
     }
   };
 
-  const navigateToLogin = async () => {
-    setIsLoadingAuth(true);
-    if (db.auth && typeof db.auth.loginWithProvider === 'function') {
-      try {
-        db.auth.loginWithProvider('google', window.location.href);
-        return;
-      } catch (e) {
-        console.error("loginWithProvider failed:", e);
-      }
+  const loginWithGoogleAccount = (email, name) => {
+    if (!email || !email.toLowerCase().endsWith("@gmail.com")) {
+      setAuthError("Only @gmail.com accounts are permitted to log in.");
+      return false;
     }
-
-    let loggedInUser = null;
-    if (db.auth && typeof db.auth.login === 'function') {
-      try {
-        await db.auth.login();
-        loggedInUser = await db.auth.me();
-      } catch (e) {
-        console.error("Real login failed:", e);
-      }
-    } else if (db.auth && typeof db.auth.signInWithGoogle === 'function') {
-      try {
-        await db.auth.signInWithGoogle();
-        loggedInUser = await db.auth.me();
-      } catch (e) {
-        console.error("Real signInWithGoogle failed:", e);
-      }
-    }
-
-    if (!loggedInUser) {
-      const mockEmail = localStorage.getItem("glucosaur_mock_email") || "glucosaur@example.com";
-      const mockName = localStorage.getItem("glucosaur_mock_name") || "Glucosaur Patient";
-      loggedInUser = {
-        id: "glucosaur_mock_user_1",
-        email: mockEmail,
-        name: mockName
-      };
-    }
-
-    setUser(loggedInUser);
-    setIsAuthenticated(true);
+    
+    localStorage.setItem("glucosaur_active_user_email", email.toLowerCase().trim());
+    localStorage.setItem("glucosaur_active_user_name", name ? name.trim() : "Google User");
     localStorage.setItem("glucosaur_authenticated", "true");
-    setIsLoadingAuth(false);
-    setAuthChecked(true);
+    
+    // Add to device accounts list
+    let accounts = [];
+    try {
+      accounts = JSON.parse(localStorage.getItem("glucosaur_google_accounts") || "[]");
+    } catch (e) {}
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!accounts.some(acc => acc.email.toLowerCase() === normalizedEmail)) {
+      accounts.push({
+        email: normalizedEmail,
+        name: name ? name.trim() : "Google User"
+      });
+      localStorage.setItem("glucosaur_google_accounts", JSON.stringify(accounts));
+    }
+    
+    setUser({
+      id: "glucosaur_mock_user_1",
+      email: normalizedEmail,
+      name: name ? name.trim() : "Google User"
+    });
+    setIsAuthenticated(true);
+    setAuthError(null);
+    return true;
+  };
+
+  const navigateToLogin = async () => {
+    try {
+      setIsLoadingAuth(true);
+      setAuthError(null);
+      
+      const appId = appParams.appId || "mock-app-id";
+      const appBaseUrl = appParams.appBaseUrl || window.location.origin;
+      const redirectUrl = window.location.href;
+      
+      // Force the standard Google Account Picker by appending the 'prompt=select_account' query parameter
+      const loginUrl = `${appBaseUrl}/api/apps/auth/login?app_id=${appId}&from_url=${encodeURIComponent(redirectUrl)}&prompt=select_account`;
+      
+      window.location.href = loginUrl;
+    } catch (e) {
+      console.error("navigateToLogin failed:", e);
+      setAuthError(e.message || "Failed to navigate to Google login");
+      setIsLoadingAuth(false);
+    }
   };
 
   return (
@@ -168,10 +264,12 @@ export const AuthProvider = ({ children }) => {
       isLoadingAuth,
       isLoadingPublicSettings,
       authError,
+      setAuthError,
       appPublicSettings,
       authChecked,
       logout,
       navigateToLogin,
+      loginWithGoogleAccount,
       checkUserAuth,
       checkAppState
     }}>
